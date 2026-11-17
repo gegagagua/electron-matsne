@@ -1,12 +1,16 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { INTERCEPTOR_SCRIPT } = require('./interceptor');
 
 // Live site. When it cannot be reached, the app falls back to bundled offline
 // pages. If the user has ever visited their favorites while logged in, the
 // favorites page is shown offline; otherwise the generic home page is shown.
-const TARGET_URL = 'https://ldms-matsne.staging.cloud.gov.ge/';
-const FAVORITES_LIVE_URL = 'https://ldms-matsne.staging.cloud.gov.ge/profile/favorites';
+// BASE_URL is the single place to switch between local dev and staging.
+// Defaults to the local Angular dev server; override with MATSNE_BASE_URL.
+const BASE_URL = process.env.MATSNE_BASE_URL || 'http://localhost:4200/';
+const TARGET_URL = BASE_URL;
+const FAVORITES_LIVE_URL = BASE_URL + 'profile/favorites';
 const HOME_FILE = path.join(__dirname, 'home.html');
 const FAVORITES_FILE = path.join(__dirname, 'favorites.html');
 
@@ -153,137 +157,145 @@ function createWindow() {
 // Injected into the live site's main world. Patches fetch and XMLHttpRequest
 // so any response for the favorites API is forwarded to the main process for
 // caching. Also mirrors any known auth-token localStorage keys.
-function injectInterceptor() {
-  if (!mainWindow) return;
-  const script = `
-    (function () {
-      if (window.__matsneHooked) return;
-      window.__matsneHooked = true;
+function injectInterceptor(webContents) {
+  const wc = webContents || (mainWindow && mainWindow.webContents);
+  if (!wc) return;
+  wc.executeJavaScript(INTERCEPTOR_SCRIPT, false).catch(() => {});
+}
 
-      function isFavUrl(u) {
-        return typeof u === 'string' && u.indexOf('/profile/favorites') !== -1;
-      }
-      function getQueryParam(u, name) {
-        try {
-          var q = String(u).split('?')[1];
-          if (!q) return null;
-          var re = new RegExp('(?:^|&)' + name + '=([^&#]+)');
-          var m = q.match(re);
-          return m ? decodeURIComponent(m[1]) : null;
-        } catch (e) { return null; }
-      }
-      // Cache the currently-viewed document id so page/content and structure/get
-      // responses (which key on publicationId) can be associated with it.
-      window.__matsneCurrentDocId = null;
+// --- Background prefetch: full offline backup of every favorite ----------
+// Triggered whenever the favorites list is cached (i.e. the logged-in user is
+// on their favorites page). Opens a hidden window that visits each favorite
+// document so the existing interceptor caches its detail parts for offline use.
+const PREFETCH_SETTLE_MS = 9000;           // max wait per document for its APIs
+const PREFETCH_POLL_MS = 400;              // cache-file poll interval
+const PREFETCH_GAP_MS = 400;               // pause between documents
+const PREFETCH_MIN_INTERVAL_MS = 60 * 1000; // throttle repeated triggers
 
-      function classifyDocApi(u) {
-        // Returns { id, part } if the URL is a doc-detail API we want to cache.
-        try {
-          if (typeof u !== 'string') return null;
-          if (u.indexOf('/normative/page/get') !== -1) {
-            var idA = getQueryParam(u, 'id');
-            if (idA) return { id: idA, part: 'pageGet' };
-          }
-          if (u.indexOf('/normative/page/content') !== -1 && window.__matsneCurrentDocId) {
-            return { id: window.__matsneCurrentDocId, part: 'pageContent' };
-          }
-          if (u.indexOf('/normative/structure/get') !== -1 && window.__matsneCurrentDocId) {
-            return { id: window.__matsneCurrentDocId, part: 'structureGet' };
-          }
-        } catch (e) {}
-        return null;
-      }
+let prefetchWindow = null;
+let prefetchRunning = false;
+let lastPrefetchAt = 0;
 
-      var origFetch = window.fetch;
-      window.fetch = function () {
-        var args = arguments;
-        var url = '';
-        try { url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || ''; } catch (e) {}
-        return origFetch.apply(this, args).then(function (res) {
-          try {
-            if (isFavUrl(url) && res && res.ok) {
-              res.clone().json().then(function (data) {
-                try { window.matsne && window.matsne.cacheFavorites && window.matsne.cacheFavorites(url, data); } catch (e) {}
-              }).catch(function () {});
-            }
-            var docCls = classifyDocApi(url);
-            if (docCls && res && res.ok) {
-              res.clone().json().then(function (data) {
-                try { window.matsne && window.matsne.cacheDocPart && window.matsne.cacheDocPart({ id: docCls.id, part: docCls.part, data: data }); } catch (e) {}
-              }).catch(function () {});
-            }
-          } catch (e) {}
-          return res;
-        });
-      };
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
-      var origOpen = XMLHttpRequest.prototype.open;
-      var origSend = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.open = function (m, u) { this.__matsneUrl = u; return origOpen.apply(this, arguments); };
-      XMLHttpRequest.prototype.send = function () {
-        var self = this;
-        this.addEventListener('load', function () {
-          try {
-            var u = self.__matsneUrl;
-            if (isFavUrl(u) && self.status >= 200 && self.status < 300) {
-              var data = null;
-              try { data = JSON.parse(self.responseText); } catch (e) {}
-              if (data) {
-                try { window.matsne && window.matsne.cacheFavorites && window.matsne.cacheFavorites(u, data); } catch (e) {}
-              }
-            }
-            var docCls = classifyDocApi(u);
-            if (docCls && self.status >= 200 && self.status < 300) {
-              var docData = null;
-              try { docData = JSON.parse(self.responseText); } catch (e) {}
-              if (docData) {
-                try { window.matsne && window.matsne.cacheDocPart && window.matsne.cacheDocPart({ id: docCls.id, part: docCls.part, data: docData }); } catch (e) {}
-              }
-            }
-          } catch (e) {}
-        });
-        return origSend.apply(this, arguments);
-      };
+// Mirror favorites.html's item extraction so we read the same list shape.
+function extractFavoriteItems(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.content)) return data.content;
+  if (Array.isArray(data.items)) return data.items;
+  if (Array.isArray(data.results)) return data.results;
+  if (Array.isArray(data.data)) return data.data;
+  if (data.data && typeof data.data === 'object') return extractFavoriteItems(data.data);
+  return [];
+}
 
-      function reportDocLocation() {
-        try {
-          if (location.pathname.indexOf('/documents/search') !== -1) {
-            var id = getQueryParam(location.search, 'id');
-            if (id) {
-              window.__matsneCurrentDocId = id;
-              try { window.matsne && window.matsne.cacheDocumentUrl && window.matsne.cacheDocumentUrl({ id: id, pageUrl: location.href }); } catch (e) {}
-            }
-          } else {
-            window.__matsneCurrentDocId = null;
-          }
-        } catch (e) {}
-      }
-      var _push = history.pushState;
-      history.pushState = function () { var r = _push.apply(history, arguments); reportDocLocation(); return r; };
-      var _replace = history.replaceState;
-      history.replaceState = function () { var r = _replace.apply(history, arguments); reportDocLocation(); return r; };
-      window.addEventListener('popstate', reportDocLocation);
-      reportDocLocation();
-      setInterval(reportDocLocation, 3000);
+function favoriteIdsFromData(data) {
+  const ids = [];
+  const seen = new Set();
+  for (const it of extractFavoriteItems(data)) {
+    if (!it || typeof it !== 'object') continue;
+    const id = it.id || it.documentId || it.docId;
+    if (id == null || id === '') continue;
+    const sid = String(id);
+    if (seen.has(sid)) continue;
+    seen.add(sid);
+    ids.push(sid);
+  }
+  return ids;
+}
 
-      function pushToken() {
-        try {
-          var keys = ['token', 'authToken', 'access_token', 'accessToken', 'jwt', 'Authorization', 'id_token'];
-          for (var i = 0; i < keys.length; i++) {
-            var v = null;
-            try { v = localStorage.getItem(keys[i]); } catch (e) {}
-            if (v) {
-              try { window.matsne && window.matsne.cacheToken && window.matsne.cacheToken(keys[i], v); } catch (e) {}
-              return;
-            }
-          }
-        } catch (e) {}
-      }
-      pushToken();
-      setInterval(pushToken, 5000);
-    })();
-  `;
-  mainWindow.webContents.executeJavaScript(script, false).catch(() => {});
+function docCachedParts(id) {
+  try {
+    const p = docCachePath(id);
+    if (!fs.existsSync(p)) return {};
+    const rec = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return (rec && rec.parts) || {};
+  } catch { return {}; }
+}
+
+function prefetchDocUrl(id) {
+  const idx = readDocUrlIndex();
+  const rec = idx[String(id)];
+  if (rec && rec.pageUrl) return rec.pageUrl;
+  return TARGET_URL + 'documents/search?id=' + encodeURIComponent(String(id));
+}
+
+function writePrefetchStatus(status) {
+  try {
+    fs.writeFileSync(
+      path.join(app.getPath('userData'), 'prefetch-status.json'),
+      JSON.stringify(status, null, 2), 'utf8');
+  } catch {}
+}
+
+// Wait until the document's detail parts land in the cache, or give up.
+async function waitForDocParts(id, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const parts = docCachedParts(id);
+    if (parts.pageGet && parts.pageContent) return true;
+    await sleep(PREFETCH_POLL_MS);
+  }
+  return false;
+}
+
+async function loadDocInPrefetchWindow(id) {
+  if (!prefetchWindow || prefetchWindow.isDestroyed()) return;
+  const wc = prefetchWindow.webContents;
+  try {
+    await wc.loadURL(prefetchDocUrl(id));
+  } catch (e) {
+    // -3 (aborted) and transient nav errors are expected; still try to cache.
+  }
+  // The interceptor is installed by prefetch-preload.js before page scripts run,
+  // so the doc-detail XHRs are already being captured — just wait for the parts.
+  await waitForDocParts(id, PREFETCH_SETTLE_MS);
+}
+
+async function prefetchFavoriteDocuments(data) {
+  if (prefetchRunning) return;
+  if (!isOnline()) return;
+  const ids = favoriteIdsFromData(data);
+  if (!ids.length) return;
+
+  const now = Date.now();
+  if (now - lastPrefetchAt < PREFETCH_MIN_INTERVAL_MS) return;
+  lastPrefetchAt = now;
+  prefetchRunning = true;
+
+  writePrefetchStatus({ state: 'running', total: ids.length, done: 0, startedAt: new Date().toISOString() });
+
+  try {
+    prefetchWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'prefetch-preload.js'),
+        contextIsolation: false,
+        nodeIntegration: false,
+        sandbox: false,
+        backgroundThrottling: false,
+      },
+    });
+
+    let done = 0;
+    for (const id of ids) {
+      if (!prefetchWindow || prefetchWindow.isDestroyed()) break;
+      await loadDocInPrefetchWindow(id);
+      done++;
+      writePrefetchStatus({ state: 'running', total: ids.length, done, updatedAt: new Date().toISOString() });
+      await sleep(PREFETCH_GAP_MS);
+    }
+    writePrefetchStatus({ state: 'done', total: ids.length, done, finishedAt: new Date().toISOString() });
+    console.log('[prefetch] cached ' + done + '/' + ids.length + ' favorite documents');
+  } catch (e) {
+    console.error('Prefetch failed:', e);
+    writePrefetchStatus({ state: 'error', error: String((e && e.message) || e) });
+  } finally {
+    try { if (prefetchWindow && !prefetchWindow.isDestroyed()) prefetchWindow.destroy(); } catch {}
+    prefetchWindow = null;
+    prefetchRunning = false;
+  }
 }
 
 // --- IPC handlers --------------------------------------------------------
@@ -299,6 +311,8 @@ ipcMain.on('matsne:cache-favorites', (_event, payload) => {
       savedAt: new Date().toISOString(),
     };
     fs.writeFileSync(favoritesCachePath(), JSON.stringify(record, null, 2), 'utf8');
+    // On each login/favorites visit, back up every favorite document in detail.
+    if (payload && payload.data) prefetchFavoriteDocuments(payload.data);
   } catch (e) {
     console.error('Failed to cache favorites:', e);
   }
@@ -383,7 +397,13 @@ ipcMain.on('matsne:open-document', (_event, id) => openDocument(id));
 
 ipcMain.handle('matsne:is-online', () => isOnline());
 
+// Expose internals for integration tests (see test/). No effect on the app.
+module.exports = { prefetchFavoriteDocuments, favoriteIdsFromData };
+
 app.whenReady().then(() => {
+  // MATSNE_HEADLESS lets tests drive the prefetch without opening the main
+  // fullscreen window; the normal app always creates it.
+  if (process.env.MATSNE_HEADLESS) return;
   createWindow();
 
   // Exit fullscreen with Escape, toggle with F11.
