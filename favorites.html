@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Matsne — რჩეული დოკუმენტები (ოფლაინ)</title>
+  <style>
+    @font-face { font-family: firago; src: url('assets/site/firago-regular-webfont.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: firagoBold; src: url('assets/site/firago-semibold-webfont.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
+    :root {
+      --navy: #081B44;
+      --blue: #1A47C1;
+      --blue-2: #2497DA;
+      --text: #081b44;
+      --muted: #5b6478;
+      --border: #CAD0DF;
+      --bg: #ffffff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 62.5%; }
+    body {
+      font-family: firago, "Helvetica Neue", "Segoe UI", Tahoma, sans-serif;
+      font-size: 1.5rem;
+      color: var(--text);
+      background: #fff;
+      -webkit-user-select: none;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+    /* Full-page watermark art (like matsne body::after) */
+    body::after {
+      content: "";
+      display: block;
+      width: 70%; height: 90%;
+      position: fixed;
+      bottom: 0; right: 0;
+      z-index: -1;
+      background: url('assets/site/footer-bg.png') no-repeat bottom right;
+      background-size: 100% auto;
+      opacity: .35;
+      pointer-events: none;
+    }
+
+    /* ---------- Offline / online banners ---------- */
+    #offline-banner {
+      background: #fff4d6; color: #8a6300; text-align: center;
+      padding: 8px; font-size: 1.3rem; border-bottom: 1px solid #f0e0a8;
+      font-family: firago, sans-serif;
+    }
+    #online-banner {
+      display: none; background: #dff6e3; color: #24632f; text-align: center;
+      padding: 8px; font-size: 1.3rem; border-bottom: 1px solid #b7e3c0;
+    }
+    #online-banner a { color: #17572a; text-decoration: underline; cursor: pointer; margin-left: 8px; }
+    body.is-online #offline-banner { display: none; }
+    body.is-online #online-banner { display: block; }
+
+    /* ---------- Header (matches matsne.gov.ge) ---------- */
+    .header {
+      position: relative;
+      border-bottom: 2px solid var(--border);
+      font-size: 1.4rem;
+      z-index: 10;
+      margin-bottom: 35px;
+      background: #fff;
+    }
+    .header::before {
+      content: ""; display: block; width: 100%; height: calc(100% - 120px);
+      background: linear-gradient(90deg, rgb(26,71,193) 0%, rgb(36,151,218) 100%);
+      position: absolute; z-index: 1; top: 0; left: 0;
+    }
+    .header::after {
+      content: ""; display: block;
+      background: url('assets/site/header-bg-2.png') no-repeat bottom;
+      background-size: 100% 100%;
+      position: absolute; z-index: 2; bottom: 58px; left: 0;
+      width: 100%; height: 62px;
+    }
+    .header__abstract-item {
+      content: ""; display: block;
+      width: 1040px; height: 270px;
+      background: url('assets/site/header-logo-bg.png') no-repeat top left;
+      background-size: auto 100%;
+      position: absolute; z-index: 3; top: 0; left: calc(50% - 1040px);
+      pointer-events: none;
+    }
+    .header__top {
+      display: block; position: relative;
+      padding-top: 40px;
+      z-index: 60;
+      min-height: 82px;
+    }
+    .header__top::before {
+      content: ""; display: block;
+      width: 100%; height: calc(100% - 30px);
+      background: #081B44;
+      position: absolute; z-index: 2; top: 0; left: 0;
+    }
+    .header__bottom {
+      display: block; position: relative;
+      z-index: 4;
+      padding-top: 22px; padding-bottom: 100px;
+    }
+    .header__bottom::before {
+      content: ""; display: block;
+      background: url('assets/site/header-bg-1.png') no-repeat bottom;
+      background-size: 100% 100%;
+      position: absolute; z-index: 3; top: -30px; left: 0;
+      width: 100%; height: 80px;
+    }
+    .container {
+      max-width: 1200px; margin: 0 auto; padding: 0 32px;
+      position: relative; z-index: 10;
+    }
+    .header__top .container,
+    .header__bottom .container { position: relative; z-index: 10; }
+
+    /* Logo */
+    .header__logo {
+      display: inline-flex; align-items: center;
+      color: #fff; text-decoration: none;
+      cursor: pointer;
+    }
+    .header__logo img {
+      width: 70px; height: 80px; display: block;
+    }
+    .header__logo .logotext {
+      display: block;
+      font-size: 2.4rem;
+      line-height: 1.2;
+      padding-left: 16px;
+      margin: 0;
+      font-weight: 700;
+      font-family: firagoBold, firago, sans-serif;
+      color: #fff;
+      text-transform: uppercase;
+    }
+
+    .header__top-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 20px;
+    }
+
+    /* Utility buttons row */
+    .header__top-buttons {
+      display: flex; align-items: center; gap: 20px;
+      list-style: none; margin: 0; padding: 0;
+    }
+    .header__top-buttons-link {
+      cursor: pointer;
+      color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .header__top-buttons-icon {
+      width: 24px; min-width: 24px; height: 24px; fill: #fff;
+      transition: fill .15s;
+    }
+    .header__top-buttons-icon--yt { width: 30px; min-width: 30px; }
+    .header__top-buttons-icon--fb { width: 14px; min-width: 14px; }
+    .header__top-buttons-link:hover .header__top-buttons-icon { fill: #2497da; }
+
+    .header__accessibility-button {
+      display: flex; align-items: center; justify-content: center;
+      width: 46px; min-width: 46px; height: 46px;
+      border: 2px solid #fff; border-radius: 30px;
+      background: transparent; cursor: pointer;
+    }
+    .header__accessibility-button-icon { width: 22px; height: 24px; fill: #fff; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 10px 18px; border-radius: 6px; border: 0;
+      font-size: 1.4rem; cursor: pointer;
+      font-family: firago, sans-serif;
+    }
+    .btn--login {
+      background: #fff; color: var(--navy); font-weight: 600;
+    }
+    .btn--login-icon { width: 16px; height: 16px; fill: var(--navy); }
+    .btn--lock {
+      background: #0a1330; color: #fff;
+      width: 46px; height: 46px; padding: 0; justify-content: center;
+      border-radius: 6px;
+    }
+    .btn--lock svg { width: 20px; height: 20px; fill: #fff; }
+    .btn--blue {
+      background: var(--blue-2); color: #fff; font-weight: 600;
+      padding: 10px 16px;
+    }
+    .header__lang-flag {
+      display: inline-flex; width: 26px; min-width: 26px; height: 18px;
+      margin-right: 8px; border-radius: 2px; overflow: hidden;
+      background: #fff; position: relative;
+    }
+    .header__lang-flag::before,
+    .header__lang-flag::after { content: ""; position: absolute; background: #d00; }
+    .header__lang-flag::before { left: 46%; top: 0; width: 8%; height: 100%; }
+    .header__lang-flag::after { top: 46%; left: 0; height: 8%; width: 100%; }
+
+    /* Nav menu */
+    .header__menu {
+      display: flex; justify-content: center; position: relative;
+      z-index: 30; padding: 0 0 0 10px;
+      margin: -60px 0 0;
+      width: 100%; list-style: none;
+      font-size: 1.6rem;
+      line-height: 1.1;
+    }
+    .header__menu-list {
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .header__menu-link { position: relative; }
+    .header__menu-link-a {
+      display: flex; align-items: center; justify-content: center;
+      padding: 18px 10px 16px; margin: 0 10px;
+      color: var(--navy);
+      position: relative; cursor: pointer;
+      text-decoration: none;
+      font-family: firago, sans-serif;
+    }
+    .header__menu-link-a::after {
+      display: none; width: 100%; height: 4px; border-radius: 4px;
+      background: var(--blue-2); content: "";
+      position: absolute; left: 0; bottom: -2px; z-index: 5;
+    }
+    .header__menu-link--active .header__menu-link-a { color: var(--blue-2); }
+    .header__menu-link--active .header__menu-link-a::after { display: block; }
+    .header__menu-link:hover .header__menu-link-a { color: var(--blue-2); }
+    .header__menu-link-a svg {
+      width: 12px; min-width: 12px; height: 14px;
+      margin: 0 0 2px 4px; fill: currentColor;
+    }
+
+    /* ---------- Middle: favorites section ---------- */
+    main {
+      flex: 1; width: 100%; max-width: 1180px; margin: 0 auto;
+      padding: 12px 32px 60px;
+      position: relative; z-index: 2;
+    }
+    .page-title { text-align: center; margin-bottom: 26px; }
+    .page-title h1 {
+      font-size: 3rem; font-weight: 700; color: var(--navy);
+      margin-bottom: 8px;
+      font-family: firagoBold, firago, sans-serif;
+    }
+    .page-title p { color: var(--muted); font-size: 1.4rem; }
+
+    .toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin: 12px 0 8px;
+      color: var(--muted); font-size: 1.3rem;
+    }
+    .toolbar .actions { display: flex; gap: 10px; }
+    .toolbar .tbtn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 8px; font-size: 1.3rem; cursor: pointer;
+      border: 1px solid var(--border); background: #fff; color: var(--navy);
+      font-family: firago, sans-serif;
+    }
+    .toolbar .tbtn.primary { background: var(--blue-2); color: #fff; border-color: var(--blue-2); }
+
+    .list {
+      background: #fff; border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden; box-shadow: 0 6px 18px rgba(8,27,68,.05);
+    }
+    .fav {
+      display: grid; grid-template-columns: 110px 1fr auto; gap: 18px;
+      padding: 18px 24px; border-bottom: 1px solid var(--border);
+      align-items: center; cursor: pointer; transition: background .12s;
+    }
+    .fav:hover { background: #f4f7fd; }
+    .fav:last-child { border-bottom: 0; }
+    .fav-date { font-size: 1.3rem; color: var(--muted); }
+    .fav-title { font-size: 1.5rem; color: var(--text); line-height: 1.45; font-weight: 500; }
+    .fav-num { font-size: 1.2rem; color: var(--muted); margin-top: 4px; }
+    .fav-tag {
+      font-size: 1.2rem; color: var(--blue-2); background: rgba(36,151,218,.1);
+      padding: 5px 12px; border-radius: 20px; white-space: nowrap;
+    }
+    .fav-tag.cached { color: #24632f; background: rgba(36,99,47,.1); margin-left: 8px; }
+    .fav-right { display: flex; align-items: center; }
+
+    .empty {
+      text-align: center; padding: 60px 24px; color: var(--muted);
+      background: #fff; border: 1px dashed var(--border); border-radius: 12px;
+    }
+    .empty h2 { color: var(--text); margin-bottom: 8px; font-size: 1.8rem; }
+
+    /* ---------- Footer (matches matsne.gov.ge) ---------- */
+    .footer {
+      padding: 6rem 0 4rem;
+      background: url('assets/site/footer-bg-2.png') no-repeat bottom;
+      background-size: 100% 84px;
+      font-size: 1.6rem;
+      color: var(--text);
+      margin-top: 40px;
+      position: relative;
+    }
+    .footer__row {
+      display: flex; justify-content: space-between; gap: 40px;
+      max-width: 1200px; margin: 0 auto; padding: 0 32px 60px;
+    }
+    .footer__col-left { flex: 1; }
+    .footer__col-right { flex: 1; display: flex; justify-content: flex-end; }
+    .footer__button {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--navy); color: #fff; border: 0; cursor: pointer;
+      padding: 12px 22px; border-radius: 6px; font-size: 1.4rem;
+      margin-bottom: 20px;
+      font-family: firago, sans-serif;
+    }
+    .footer__button svg { width: 18px; height: 18px; fill: #fff; }
+    .footer__text { margin: 0 0 12px; padding: 0; }
+    .footer__dga-logo { display: flex; align-items: center; gap: 10px; }
+    .footer__dga-logo img { width: 30px; height: 33px; display: block; }
+
+    .footer__contact-info { list-style: none; padding: 0; margin: 0; }
+    .footer__contact-info li {
+      display: flex; align-items: center; margin-bottom: 14px;
+    }
+    .footer__contact-info li:last-child { margin: 0; }
+    .footer__icon { width: 24px; min-width: 24px; height: 24px; margin-right: 10px; fill: var(--navy); }
+    .footer__contact-info a { color: var(--text); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div id="offline-banner">ხართ ხაზგარეშე რეჟიმში — ნაჩვენებია ბოლოს შენახული რჩეული დოკუმენტები</div>
+  <div id="online-banner">კავშირი აღდგა. <a id="go-live">გახსენით ცოცხალი საიტი</a></div>
+
+  <!-- ============== HEADER ============== -->
+  <header class="header">
+    <div class="header__abstract-item"></div>
+
+    <div class="header__top">
+      <div class="container">
+        <div class="header__top-inner">
+          <a class="header__logo" data-nav>
+            <img src="assets/matsne_logo_white.png" alt="Matsne" />
+            <span class="logotext">საქართველოს<br/>საკანონმდებლო მაცნე</span>
+          </a>
+          <ul class="header__top-buttons">
+            <li class="header__top-buttons-list">
+              <a class="header__top-buttons-link" data-nav title="YouTube">
+                <svg class="header__top-buttons-icon header__top-buttons-icon--yt" viewBox="0 0 24 24"><path d="M23 12s0-3.7-.5-5.4c-.3-1-1-1.7-2-2C18.8 4 12 4 12 4s-6.8 0-8.5.6c-1 .3-1.7 1-2 2C1 8.3 1 12 1 12s0 3.7.5 5.4c.3 1 1 1.7 2 2C5.2 20 12 20 12 20s6.8 0 8.5-.6c1-.3 1.7-1 2-2 .5-1.7.5-5.4.5-5.4zM10 15V9l5 3-5 3z"/></svg>
+              </a>
+              <a class="header__top-buttons-link" data-nav title="LinkedIn">
+                <svg class="header__top-buttons-icon" viewBox="0 0 24 24"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3v9zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66V19z"/></svg>
+              </a>
+              <a class="header__top-buttons-link" data-nav title="Facebook">
+                <svg class="header__top-buttons-icon header__top-buttons-icon--fb" viewBox="0 0 24 24"><path d="M9 8H6v4h3v12h5V12h3.6l.4-4h-4V6.3c0-1 .3-1.6 1.6-1.6H18V1h-3.2C11.2 1 9 3 9 6.2V8z"/></svg>
+              </a>
+              <a class="header__top-buttons-link" data-nav title="RSS">
+                <svg class="header__top-buttons-icon" viewBox="0 0 24 24"><path d="M4 4v3c9.4 0 17 7.6 17 17h3C24 12.9 15.1 4 4 4zm0 6v3c6 0 11 5 11 11h3c0-7.7-6.3-14-14-14zm3 10a3 3 0 100 6 3 3 0 000-6z"/></svg>
+              </a>
+            </li>
+            <li class="header__top-buttons-list">
+              <button class="header__accessibility-button" data-nav title="ხელმისაწვდომობა">
+                <svg class="header__accessibility-button-icon" viewBox="0 0 24 24"><path d="M12 2a2 2 0 100 4 2 2 0 000-4zm-4 5v2h3v13h2v-6h2v6h2V9h3V7H8z"/></svg>
+              </button>
+            </li>
+            <li class="header__top-buttons-list">
+              <button class="btn btn--login" data-nav>
+                შესვლა
+                <svg class="btn--login-icon" viewBox="0 0 24 24"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-4 0-8 2-8 6v2h16v-2c0-4-4-6-8-6z"/></svg>
+              </button>
+              <button class="btn btn--lock" data-nav title="უსაფრთხო წვდომა">
+                <svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 00-5 5v3H5v12h14V10h-2V7a5 5 0 00-5-5zm-3 8V7a3 3 0 116 0v3H9z"/></svg>
+              </button>
+              <button class="btn btn--blue" data-nav>
+                <span class="header__lang-flag" aria-hidden="true"></span>
+                Eng
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="header__bottom">
+      <div class="container">
+        <ul class="header__menu">
+          <li class="header__menu-link header__menu-link--active"><a class="header__menu-link-a" data-nav>მთავარი</a></li>
+          <li class="header__menu-link"><a class="header__menu-link-a" data-nav>ჩვენ შესახებ <svg viewBox="0 0 12 8"><path d="M6 8L0 0h12z"/></svg></a></li>
+          <li class="header__menu-link"><a class="header__menu-link-a" data-nav>სერვისები</a></li>
+          <li class="header__menu-link"><a class="header__menu-link-a" data-nav>სიახლეები</a></li>
+          <li class="header__menu-link"><a class="header__menu-link-a" data-nav>კონტაქტი</a></li>
+          <li class="header__menu-link"><a class="header__menu-link-a" data-nav>ტოპ დოკუმენტები</a></li>
+          <li class="header__menu-link"><a class="header__menu-link-a" data-nav>შეამოწმე შენი ცოდნა</a></li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============== MIDDLE: favorites ============== -->
+  <main>
+    <div class="page-title">
+      <h1>რჩეული დოკუმენტები</h1>
+      <p>ინტერნეტთან წვდომის აღდგენის შემდეგ სია ავტომატურად განახლდება.</p>
+    </div>
+
+    <div class="toolbar">
+      <div id="meta-left"><span id="count"></span></div>
+      <div class="actions">
+        <button class="tbtn" id="retry">ხელახლა ცდა</button>
+        <button class="tbtn primary" id="open-live">ცოცხალი საიტი</button>
+      </div>
+    </div>
+    <div class="toolbar" style="margin-top:0;">
+      <div id="saved-at"></div>
+      <div></div>
+    </div>
+
+    <div id="list-root"></div>
+  </main>
+
+  <!-- ============== FOOTER ============== -->
+  <footer class="footer">
+    <div class="footer__row">
+      <div class="footer__col-left">
+        <button class="footer__button" data-nav>
+          <svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 012 2v10a2 2 0 01-2 2H8l-4 4V6a2 2 0 012-2z"/></svg>
+          უკუკავშირი
+        </button>
+        <p class="footer__text">© 2010 - 2026 ყველა უფლება დაცულია</p>
+        <div class="footer__dga-logo">
+          <span>დამზადებულია</span>
+          <img src="assets/site/dga-logo.svg" alt="DGA" />
+          <span>-ს მიერ</span>
+        </div>
+      </div>
+      <div class="footer__col-right">
+        <ul class="footer__contact-info">
+          <li>
+            <svg class="footer__icon" viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 00-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg>
+            ქ.თბილისი გ.ფანჯიკიძის ქ.№2
+          </li>
+          <li>
+            <svg class="footer__icon" viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.3 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 013 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.3 0 .7-.3 1L6.6 10.8z"/></svg>
+            (+995 32) 2 40 50 50
+          </li>
+          <li>
+            <svg class="footer__icon" viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm0 4l8 5 8-5V6l-8 5-8-5v2z"/></svg>
+            matsne@matsne.gov.ge
+          </li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function pick(obj, keys) {
+      if (!obj) return '';
+      for (var i = 0; i < keys.length; i++) {
+        var v = obj[keys[i]];
+        if (v != null && v !== '') return v;
+      }
+      return '';
+    }
+    function extractItems(data) {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.content)) return data.content;
+      if (Array.isArray(data.items)) return data.items;
+      if (Array.isArray(data.results)) return data.results;
+      if (Array.isArray(data.data)) return data.data;
+      if (data.data && typeof data.data === 'object') return extractItems(data.data);
+      return [];
+    }
+    function formatDate(v) {
+      if (!v) return '';
+      if (typeof v === 'number') {
+        var d = new Date(v > 1e12 ? v : v * 1000);
+        if (!isNaN(d.getTime())) return d.toLocaleDateString('ka-GE');
+      }
+      if (typeof v === 'string') {
+        var d2 = new Date(v);
+        if (!isNaN(d2.getTime())) return d2.toLocaleDateString('ka-GE');
+        return v;
+      }
+      return String(v);
+    }
+
+    var CACHED_IDS = {};
+    async function preflightCachedIds(items) {
+      if (!items || !items.length || !window.matsne || !window.matsne.hasCachedDocument) return;
+      await Promise.all(items.map(async function (it) {
+        var id = it.id || it.documentId || it.docId;
+        if (!id) return;
+        try {
+          var ok = await window.matsne.hasCachedDocument(id);
+          if (ok) CACHED_IDS[id] = true;
+        } catch (e) {}
+      }));
+    }
+
+    function renderList(items) {
+      var root = document.getElementById('list-root');
+      var countEl = document.getElementById('count');
+      if (!items || !items.length) {
+        countEl.textContent = '';
+        root.innerHTML = '<div class="empty">'
+          + '<h2>რჩეული დოკუმენტები არ არის შენახული</h2>'
+          + '<p>დაბრუნდით ინტერნეტთან და გახსენით რჩეულების გვერდი, რომ დაიმახსოვროთ ისინი ოფლაინ რეჟიმისთვის.</p>'
+          + '</div>';
+        return;
+      }
+      countEl.textContent = items.length + ' შენახული ჩანაწერი';
+      var html = items.map(function (it) {
+        var title = pick(it, ['title', 'name', 'documentTitle', 'docTitle', 'subject', 'documentName', 'ka', 'nameKa']);
+        var date = pick(it, ['publishedDate', 'publicationDate', 'issueDate', 'docDate', 'receiveDate', 'date', 'publishedAt', 'createdAt', 'created', 'addedAt']);
+        var number = pick(it, ['docNumber', 'documentNumber', 'number', 'regNumber']);
+        var type = pick(it, ['documentType', 'docType', 'type', 'typeName']);
+        if (title && typeof title === 'object') title = pick(title, ['ka', 'title', 'name', 'value']) || JSON.stringify(title);
+        if (type && typeof type === 'object') type = pick(type, ['ka', 'name', 'title', 'value']) || '';
+        var idHint = it.id || it.documentId || it.docId || '';
+        var cachedMark = CACHED_IDS[idHint] ? '<span class="fav-tag cached">ოფლაინ</span>' : '';
+        return '<div class="fav" data-id="' + esc(idHint) + '">'
+          + '<div class="fav-date">' + esc(formatDate(date)) + '</div>'
+          + '<div>'
+            + '<div class="fav-title">' + esc(title || ('დოკუმენტი #' + idHint)) + '</div>'
+            + (number ? '<div class="fav-num">№ ' + esc(number) + '</div>' : '')
+          + '</div>'
+          + '<div class="fav-right">'
+            + (type ? '<span class="fav-tag">' + esc(type) + '</span>' : '')
+            + cachedMark
+          + '</div>'
+          + '</div>';
+      }).join('');
+      root.innerHTML = '<div class="list">' + html + '</div>';
+    }
+
+    async function boot() {
+      var record = null;
+      try { record = await window.matsne.getCachedFavorites(); } catch (e) {}
+      var savedAtEl = document.getElementById('saved-at');
+      if (record && record.savedAt) {
+        try {
+          savedAtEl.textContent = 'ბოლო განახლება: ' + new Date(record.savedAt).toLocaleString('ka-GE');
+        } catch (e) { savedAtEl.textContent = ''; }
+      }
+      var items = extractItems(record && record.data);
+      await preflightCachedIds(items);
+      renderList(items);
+    }
+
+    function reflectOnline() {
+      document.body.classList.toggle('is-online', !!navigator.onLine);
+    }
+    window.addEventListener('online', reflectOnline);
+    window.addEventListener('offline', reflectOnline);
+    reflectOnline();
+
+    document.querySelectorAll('[data-nav]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (window.matsne && window.matsne.openLive) window.matsne.openLive();
+      });
+    });
+
+    document.getElementById('open-live').addEventListener('click', function () {
+      if (window.matsne && window.matsne.openLiveFavorites) window.matsne.openLiveFavorites();
+    });
+    document.getElementById('retry').addEventListener('click', function () {
+      if (window.matsne && window.matsne.openLive) window.matsne.openLive();
+    });
+    var goLive = document.getElementById('go-live');
+    if (goLive) goLive.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (window.matsne && window.matsne.openLiveFavorites) window.matsne.openLiveFavorites();
+    });
+
+    document.addEventListener('click', function (e) {
+      var row = e.target.closest && e.target.closest('.fav');
+      if (!row) return;
+      var id = row.getAttribute('data-id');
+      if (id && window.matsne && window.matsne.openDocument) window.matsne.openDocument(id);
+    });
+
+    boot();
+  </script>
+</body>
+</html>

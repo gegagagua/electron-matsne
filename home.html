@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Matsne — საქართველოს საკანონმდებლო მაცნე</title>
+  <style>
+    :root {
+      --blue: #1c3f94;
+      --blue-dark: #16336f;
+      --blue-light: #2a52b8;
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --text: #1d2433;
+      --muted: #5b6478;
+      --border: #e2e7f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: "Helvetica Neue", "Segoe UI", "BPG Nino Mtavruli", Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-user-select: none;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ---------- Header ---------- */
+    header {
+      background: var(--blue);
+      color: #fff;
+      padding: 22px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 10px rgba(28,63,148,.25);
+    }
+    .brand { display: flex; align-items: center; gap: 16px; }
+    .brand img { height: 46px; display: block; }
+    .brand .sep { width: 1px; height: 40px; background: rgba(255,255,255,.3); }
+    .brand .sub { font-size: 13px; line-height: 1.4; opacity: .9; max-width: 260px; }
+    nav { display: flex; gap: 26px; font-size: 15px; }
+    nav a { color: #fff; text-decoration: none; opacity: .92; padding: 6px 2px; border-bottom: 2px solid transparent; transition: .15s; }
+    nav a:hover { opacity: 1; border-bottom-color: #fff; }
+
+    /* ---------- Hero / search ---------- */
+    .hero {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+      color: #fff;
+      padding: 56px 40px 64px;
+      text-align: center;
+    }
+    .hero h1 { font-size: 30px; font-weight: 600; margin-bottom: 10px; }
+    .hero p { font-size: 16px; opacity: .9; margin-bottom: 30px; }
+    .search {
+      max-width: 720px; margin: 0 auto;
+      display: flex; background: #fff; border-radius: 8px; overflow: hidden;
+      box-shadow: 0 12px 30px rgba(0,0,0,.18);
+    }
+    .search input {
+      flex: 1; border: 0; outline: 0; padding: 16px 20px; font-size: 16px; color: var(--text);
+    }
+    .search button {
+      border: 0; background: var(--blue-dark); color: #fff; padding: 0 30px; font-size: 16px;
+      cursor: pointer; transition: .15s;
+    }
+    .search button:hover { background: #0f2657; }
+
+    /* ---------- Main cards ---------- */
+    main { flex: 1; max-width: 1140px; width: 100%; margin: -36px auto 0; padding: 0 40px 50px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 24px; transition: transform .15s, box-shadow .15s; cursor: pointer;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(28,63,148,.14); }
+    .card .ic {
+      width: 46px; height: 46px; border-radius: 10px; background: rgba(28,63,148,.1);
+      display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+      color: var(--blue); font-size: 22px; font-weight: 700;
+    }
+    .card h3 { font-size: 17px; margin-bottom: 8px; color: var(--blue-dark); }
+    .card p { font-size: 14px; color: var(--muted); line-height: 1.55; }
+
+    .section-title { margin: 40px 0 18px; font-size: 20px; color: var(--blue-dark); font-weight: 600; }
+
+    /* ---------- Latest list ---------- */
+    .latest { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .latest .row { display: flex; gap: 18px; padding: 16px 22px; border-bottom: 1px solid var(--border); align-items: center; }
+    .latest .row:last-child { border-bottom: 0; }
+    .latest .date { font-size: 13px; color: var(--muted); min-width: 92px; }
+    .latest .doc { font-size: 15px; color: var(--text); }
+    .latest .tag { margin-left: auto; font-size: 12px; color: var(--blue); background: rgba(28,63,148,.08); padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+
+    /* ---------- Offline banner ---------- */
+    #offline {
+      display: none; background: #fff4d6; color: #8a6300; text-align: center;
+      padding: 8px; font-size: 13px; border-bottom: 1px solid #f0e0a8;
+    }
+    body.is-offline #offline { display: block; }
+
+    /* ---------- Footer ---------- */
+    footer {
+      background: var(--blue-dark); color: rgba(255,255,255,.85); text-align: center;
+      padding: 22px 40px; font-size: 13px;
+    }
+    footer a { color: #fff; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div id="offline">ხართ ხაზგარეშე რეჟიმში — ნაჩვენებია შენახული მთავარი გვერდი • You are offline — showing the saved home page</div>
+
+  <header>
+    <div class="brand">
+      <img src="assets/matsne_logo_white.png" alt="Matsne" />
+      <div class="sep"></div>
+      <div class="sub">საქართველოს საკანონმდებლო მაცნე<br/>Legislative Herald of Georgia</div>
+    </div>
+    <nav>
+      <a href="#" data-nav>მთავარი</a>
+      <a href="#" data-nav>დოკუმენტები</a>
+      <a href="#" data-nav>ორგანოები</a>
+      <a href="#" data-nav>ძებნა</a>
+      <a href="#" data-nav>დახმარება</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>საკანონმდებლო მაცნე</h1>
+    <p>საქართველოს ნორმატიული აქტების ოფიციალური სახელმწიფო რეესტრი</p>
+    <form class="search" onsubmit="return false;">
+      <input type="text" placeholder="მოძებნეთ დოკუმენტი, კანონი ან ორგანო…" />
+      <button type="submit">ძებნა</button>
+    </form>
+  </section>
+
+  <main>
+    <div class="grid">
+      <div class="card"><div class="ic">§</div><h3>ნორმატიული აქტები</h3><p>კანონები, დადგენილებები, ბრძანებები და სხვა ოფიციალური დოკუმენტები.</p></div>
+      <div class="card"><div class="ic">⚖</div><h3>სასამართლო აქტები</h3><p>საკონსტიტუციო და საერთო სასამართლოების გადაწყვეტილებები.</p></div>
+      <div class="card"><div class="ic">🏛</div><h3>სახელმწიფო ორგანოები</h3><p>გამომცემელი ორგანოების სია და მათი გამოცემული აქტები.</p></div>
+      <div class="card"><div class="ic">🔎</div><h3>დეტალური ძებნა</h3><p>ძებნა თარიღით, ნომრით, სახეობითა და გამომცემელი ორგანოთი.</p></div>
+    </div>
+
+    <h2 class="section-title">ბოლოს გამოქვეყნებული აქტები</h2>
+    <div class="latest">
+      <div class="row"><span class="date">21.07.2026</span><span class="doc">საქართველოს მთავრობის დადგენილება N412</span><span class="tag">დადგენილება</span></div>
+      <div class="row"><span class="date">20.07.2026</span><span class="doc">საქართველოს კანონი „ადგილობრივი თვითმმართველობის შესახებ“ ცვლილება</span><span class="tag">კანონი</span></div>
+      <div class="row"><span class="date">18.07.2026</span><span class="doc">ფინანსთა მინისტრის ბრძანება N186</span><span class="tag">ბრძანება</span></div>
+      <div class="row"><span class="date">17.07.2026</span><span class="doc">საკონსტიტუციო სასამართლოს გადაწყვეტილება N3/2</span><span class="tag">სასამართლო</span></div>
+      <div class="row"><span class="date">15.07.2026</span><span class="doc">იუსტიციის მინისტრის ბრძანება N94</span><span class="tag">ბრძანება</span></div>
+    </div>
+  </main>
+
+  <footer>
+    © საქართველოს საკანონმდებლო მაცნე · <a href="https://matsne.gov.ge" data-ext>matsne.gov.ge</a> · ოფიციალური სახელმწიფო რეესტრი
+  </footer>
+
+  <script>
+    // Reflect connectivity state in the banner.
+    function updateOnline() {
+      document.body.classList.toggle('is-offline', !navigator.onLine);
+    }
+    window.addEventListener('online', updateOnline);
+    window.addEventListener('offline', updateOnline);
+    updateOnline();
+
+    // Ask the main process to open the live site when available.
+    function goLive() {
+      if (window.matsne && typeof window.matsne.openLive === 'function') {
+        window.matsne.openLive();
+      }
+    }
+    document.querySelectorAll('[data-nav], [data-ext], .card, .search button').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        goLive();
+      });
+    });
+  </script>
+</body>
+</html>
